@@ -1,4 +1,6 @@
 use mongodb::{Client, options::ClientOptions};
+use dotenv::dotenv;
+use std::env;
 
 // Define a function to create and return a MongoDB client
 pub async fn get_mongodb_client() -> Result<Client, mongodb::error::Error> {
