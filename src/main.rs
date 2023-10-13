@@ -24,8 +24,14 @@ use dotenv::dotenv;
 use std::fmt;
 use std::env;
 use chrono::{FixedOffset, Duration};
+use mongodb::{Client as MongoClient, options::ClientOptions}; // Use ::mongodb to refer to the crate
+use mongodb::bson::Document;
+use std::io::Cursor;
+use crate::mongodb_connect::get_mongodb_client;
 
 mod spotify;
+mod openai;
+mod mongodb_connect;
 use crate::spotify::TrackInfo;
 
 impl fmt::Display for TrackInfo {
@@ -38,9 +44,15 @@ impl fmt::Display for TrackInfo {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct MessageData {
+    username: String,
+    content: String,
+    timestamp: String,
+}
 
 #[group]
-#[commands(hello, time, spomtify)]
+#[commands(hello, time, spomtify, rustgpt)]
 struct General;
 
 struct Handler;
@@ -49,7 +61,34 @@ struct Handler;
 impl EventHandler for Handler {
 
     async fn message(&self, _ctx: Context, msg: Message) {
-        println!("Received message: {}", msg.content);
+        let username = msg.author.name.clone();
+
+        let message_data = MessageData {
+            username: username.clone(),
+            content: msg.content.clone(),
+            timestamp: Utc::now().to_string(),
+        };
+
+        let serialized_data = serde_json::to_string(&message_data).expect("Serialization error");
+        println!("Serialized Data: {}", serialized_data);
+        
+        // Assuming you have a MongoDB client, you can save the data to MongoDB here
+        let mongodb_client = mongodb_connect::get_mongodb_client().await.expect("Failed to obtain MongoDB client"); // Replace with your MongoDB client setup
+        let collection = mongodb_client.database("discord").collection("servermessages");
+
+        let serialized_data_bytes = serialized_data.as_bytes();
+        // Serialize the data structure directly to BSON
+        let document = bson::to_document(&message_data).expect("Serialization to BSON error");
+        match collection.insert_one(document, None).await {
+            Ok(_) => {
+                println!("Message inserted into MongoDB.");
+            }
+            Err(err) => {
+                eprintln!("MongoDB insertion error: {:?}", err);
+            }
+        }
+
+        println!("Received message from {}: {}", username, msg.content);
     }
     
     // As the intents set in this example, this event shall never be dispatched.
@@ -164,8 +203,7 @@ async fn hello(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                     .field("This is the third field", "This is not an inline field", false)
                     .footer(|f| f.text("This is a footer"))
                     .timestamp(timestamp)
-                    // Add a timestamp for the current time
-                    // This also accepts a rfc3339 Timestamp
+
             })
         })
         .await;
@@ -184,7 +222,7 @@ async fn time(ctx: &Context, msg: &Message) -> CommandResult {
     let sl_time: DateTime<FixedOffset> = utc.with_timezone(&FixedOffset::east_opt(5 * 3600 + 1800).unwrap());    
     let offset = FixedOffset::west_opt(4 * 3600).unwrap(); // NY is 5 hours behind UTC
     let ny_time: DateTime<FixedOffset> = utc.with_timezone(&offset);
-    // Format the time and date
+
     let sl_time_str = sl_time.format("%I:%M %p").to_string();
     let sl_date_str = sl_time.format("%Y-%m-%d").to_string();
 
@@ -235,8 +273,23 @@ async fn spomtify(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     // Use the bearer token to generate the track list
     //spotify::generate_track_list(&token_spot).await?;
 
-    // ... Handle the response and send it as a message in the Discord channel
 
+    Ok(())
+}
+
+#[command]
+async fn rustgpt(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+    dotenv().ok();
+    // Get the message sent by the user
+    let message = args.rest();
+    
+    // Call the function to chat with GPT-3
+    let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
+    let gpt_response = openai::chat_with_gpt(message, &api_key).await.map_err(anyhow::Error::from)?;
+    
+    // Send the GPT-3 response as a message
+    msg.channel_id.say(&ctx.http, gpt_response).await?;
+    
     Ok(())
 }
 
