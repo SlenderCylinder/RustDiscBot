@@ -34,6 +34,10 @@ mod openai;
 mod mongodb_connect;
 use crate::spotify::TrackInfo;
 
+use reqwest::blocking::Client as ReqwestClient;
+use select::document::Document as HtmlDocument;
+use select::node::Node;
+
 impl fmt::Display for TrackInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -52,7 +56,7 @@ struct MessageData {
 }
 
 #[group]
-#[commands(hello, time, spomtify, rustgpt)]
+#[commands(hello, time, spomtify, rustgpt, visa)]
 struct General;
 
 struct Handler;
@@ -304,6 +308,43 @@ async fn rustgpt(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     
     Ok(())
 }
+
+#[command]
+async fn visa(ctx: &Context, msg: &Message) -> CommandResult {
+    // Run the Python script to get the case status and details
+    let output = std::process::Command::new("python")
+        .arg("case_status.py")
+        .output();
+
+    // Check if the command was successful
+    match output {
+        Ok(output_data) if output_data.status.success() => {
+            // Parse the JSON output
+            let json_output = String::from_utf8_lossy(&output_data.stdout);
+            let visa_data: serde_json::Value = serde_json::from_str(&json_output)?;
+
+            // Extract case status and details from the JSON
+            let latest_case_status = visa_data["latest_case_status"].as_str().unwrap_or("Not found");
+            let details = visa_data["details"].as_str().unwrap_or("Not found");
+
+            // Send the case status and details to Discord
+            let response = format!("Latest Case Status: {}\nDetails: {}", latest_case_status, details);
+            msg.channel_id.say(&ctx.http, response).await?;
+        }
+        Ok(output_data) => {
+            // If the Python script failed, print an error message
+            let error_message = String::from_utf8_lossy(&output_data.stderr);
+            msg.channel_id.say(&ctx.http, format!("Failed to fetch visa information. Error: {}", error_message)).await?;
+        }
+        Err(error) => {
+            // Print an error message if there was an issue running the command
+            msg.channel_id.say(&ctx.http, format!("Failed to run Python script. Error: {}", error)).await?;
+        }
+    }
+
+    Ok(())
+}
+
 
 /*#[command]
 async fn clone(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
