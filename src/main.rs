@@ -61,13 +61,25 @@ struct Handler;
 impl EventHandler for Handler {
 
     async fn message(&self, _ctx: Context, msg: Message) {
+        let user_id = msg.author.id; 
         let username = msg.author.name.clone();
+        //let content = msg.content.clone();
 
-        let message_data = MessageData {
-            username: username.clone(),
-            content: msg.content.clone(),
-            timestamp: Utc::now().to_string(),
-        };
+
+        // list of allowed user IDs and keywords
+        let allowed_users = vec![UserId(694679380068270170), UserId(490687063692279818)]; 
+        //let allowed_keywords = vec!["keyword1", "keyword2"]; 
+
+
+        // Check if the message is from an allowed user
+        if allowed_users.contains(&user_id) {
+            // Check if the message contains allowed keywords
+            //if allowed_keywords.iter().any(|keyword| content.contains(keyword)) {
+                let message_data = MessageData {
+                    username: username.clone(),
+                    content: msg.content.clone(),
+                    timestamp: Utc::now().to_string(),
+                };
 
         let serialized_data = serde_json::to_string(&message_data).expect("Serialization error");
         println!("Serialized Data: {}", serialized_data);
@@ -90,6 +102,7 @@ impl EventHandler for Handler {
 
         println!("Received message from {}: {}", username, msg.content);
     }
+}
     
     // As the intents set in this example, this event shall never be dispatched.
     // Try it by changing your status.
