@@ -67,6 +67,7 @@ impl EventHandler for Handler {
 
 
         // list of allowed user IDs and keywords
+
         let allowed_users = vec![UserId(694679380068270170), UserId(490687063692279818)]; 
         //let allowed_keywords = vec!["keyword1", "keyword2"]; 
 
@@ -84,8 +85,8 @@ impl EventHandler for Handler {
         let serialized_data = serde_json::to_string(&message_data).expect("Serialization error");
         println!("Serialized Data: {}", serialized_data);
         
-        // Assuming you have a MongoDB client, you can save the data to MongoDB here
-        let mongodb_client = mongodb_connect::get_mongodb_client().await.expect("Failed to obtain MongoDB client"); // Replace with your MongoDB client setup
+        // Push data to mongoDB
+        let mongodb_client = mongodb_connect::get_mongodb_client().await.expect("Failed to obtain MongoDB client"); 
         let collection = mongodb_client.database("discord").collection("servermessages");
 
         let serialized_data_bytes = serialized_data.as_bytes();
@@ -104,8 +105,6 @@ impl EventHandler for Handler {
     }
 }
     
-    // As the intents set in this example, this event shall never be dispatched.
-    // Try it by changing your status.
     async fn presence_update(&self, ctx: Context, new_data: PresenceUpdateEvent) {
         // Get the user's ID from the presence update
         let user_id = new_data.presence.user_id;
