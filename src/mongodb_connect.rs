@@ -2,10 +2,9 @@ use mongodb::{Client, options::ClientOptions};
 use dotenv::dotenv;
 use std::env;
 
-// Define a function to create and return a MongoDB client
 pub async fn get_mongodb_client() -> Result<Client, mongodb::error::Error> {
     // Configure MongoDB client options
-    // Retrieve the MongoDB URI from the environment variable
+    // Retrieve the MongoDB URI from the env variable
     let mongodb_uri = env::var("MONGODB_URI").expect("MONGODB_URI not set in .env file");
 
     // Configure MongoDB client options
