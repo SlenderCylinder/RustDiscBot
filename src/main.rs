@@ -24,7 +24,7 @@ use dotenv::dotenv;
 use std::fmt;
 use std::env;
 use chrono::{FixedOffset, Duration};
-use mongodb::{Client as MongoClient, options::ClientOptions}; // Use ::mongodb to refer to the crate
+use mongodb::{Client as MongoClient, options::ClientOptions}; 
 use mongodb::bson::Document;
 use std::io::Cursor;
 use crate::mongodb_connect::get_mongodb_client;
